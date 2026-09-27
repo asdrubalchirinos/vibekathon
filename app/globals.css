@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f4efe4;
+  --ink: #1c1914;
+  --muted: #6a6256;
+  --line: #d9d0bf;
+  --card: #fffdf7;
+  --teal: #0f6e6b;
+  --teal-dark: #0b5553;
+  --rust: #b45309;
+  --warn: #9a3412;
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-display);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+}
+
+a {
+  color: inherit;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.55rem 1.05rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--teal);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--teal-dark);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.btn-ghost:hover {
+  background: #efe8d8;
+}
+
+.btn-rust {
+  background: var(--rust);
+  color: #fff;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 0.7rem;
+  padding: 0.65rem 0.8rem;
+  font: inherit;
+}
+
+.textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 1.15rem 1.2rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.badge-upcoming {
+  background: #f3e8c8;
+  color: #7c4a12;
+}
+
+.badge-active {
+  background: #d7efe8;
+  color: #0b5553;
+}
+
+.badge-finished {
+  background: #ebe6dc;
+  color: #5b5348;
+}
+
+.badge-private {
+  background: #f3e0d4;
+  color: #9a3412;
+}
+
+.badge-winner {
+  background: #fde68a;
+  color: #854d0e;
+}
+
+.prose-simple h1,
+.prose-simple h2,
+.prose-simple h3 {
+  margin: 1.2em 0 0.4em;
+  line-height: 1.25;
+}
+
+.prose-simple p,
+.prose-simple ul,
+.prose-simple ol {
+  margin: 0.7em 0;
+}
+
+.prose-simple ul,
+.prose-simple ol {
+  padding-left: 1.2rem;
+}
+
+.prose-simple a {
+  color: var(--teal-dark);
+  text-decoration: underline;
+}
+
+.prose-simple code {
+  background: #efe8d8;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.3rem;
+  font-size: 0.9em;
+}
+
+.prose-simple pre {
+  background: #1c1914;
+  color: #f4efe4;
+  padding: 0.9rem 1rem;
+  border-radius: 0.8rem;
+  overflow-x: auto;
+}
+
+.prose-simple blockquote {
+  border-left: 3px solid var(--teal);
+  padding-left: 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
