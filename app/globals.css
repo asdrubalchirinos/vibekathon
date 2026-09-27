@@ -181,7 +181,7 @@ a {
   padding-left: 1.2rem;
 }
 
-.prose-simple a {
+.prose-simple a:not(.btn) {
   color: var(--teal-dark);
   text-decoration: underline;
 }

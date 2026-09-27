@@ -66,8 +66,8 @@ Reglas simples de Next.js que verás en el código:
 1. En GitHub: **Settings → Developer settings → OAuth Apps → New OAuth App**.
 2. Rellena:
    - **Application name:** `vibekathon` (o el que quieras)
-   - **Homepage URL:** `http://localhost:43147` en local; en producción, `https://tu-dominio.com`
-   - **Authorization callback URL:**  
+   - **Homepage URL:** `http://localhost:3000` en local; en producción, `https://tu-dominio.com`
+   - **Redirect URI** (antes se llamaba **Authorization callback URL**):  
      `https://TU-PROYECTO.supabase.co/auth/v1/callback`  
      (reemplaza `TU-PROYECTO` por la referencia de tu proyecto; la ves en Settings → API, en Project URL)
 3. Crea la app y copia el **Client ID**. Genera un **Client Secret**.
@@ -77,10 +77,10 @@ Reglas simples de Next.js que verás en el código:
 1. En Supabase: **Authentication → Sign In / Providers → GitHub**.
 2. Actívalo y pega el Client ID y el Client Secret.
 3. En **Authentication → URL Configuration**:
-   - **Site URL:** `http://localhost:43147` (luego la cambias a tu dominio de Vercel)
+   - **Site URL:** `http://localhost:3000` (luego la cambias a tu dominio de Vercel)
    - **Redirect URLs:** agrega  
-     `http://localhost:43147/auth/callback`  
-     y, cuando despliegues, `https://tu-dominio.com/auth/callback`
+     `http://localhost:3000/**`  
+     y, cuando despliegues, `https://tu-dominio.com/**`
 
 ## 3. Crear las tablas (migración)
 
@@ -119,7 +119,7 @@ npm install
 npm run dev
 ```
 
-Abre [http://127.0.0.1:43147](http://127.0.0.1:43147).
+Abre [http://localhost:3000](http://localhost:3000).
 
 ## 5. Desplegar en Vercel
 
@@ -143,10 +143,10 @@ Abre [http://127.0.0.1:43147](http://127.0.0.1:43147).
 
 ## Scripts
 
-- `npm run dev` — desarrollo en el puerto 43147
+- `npm run dev` — desarrollo en [http://localhost:3000](http://localhost:3000)
 - `npm run lint` — ESLint
 - `npm run build` — build de producción
-- `npm start` — servir el build
+- `npm start` — servir el build (mismo puerto 3000)
 
 ## Notas para quien organiza el código
 
