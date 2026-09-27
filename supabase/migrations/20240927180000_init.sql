@@ -385,9 +385,11 @@ create policy "profiles_insert_own"
   with check (id = auth.uid());
 
 -- Eventos: públicos para todos; privados solo organizador o invitados.
+-- organizer_id = auth.uid() va primero: insert(...).select() (RETURNING)
+-- no puede ver la fila nueva dentro de can_view_event (STABLE, lee vibekathons).
 create policy "vibekathons_select_visible"
   on public.vibekathons for select
-  using (public.can_view_event(id));
+  using (organizer_id = auth.uid() or public.can_view_event(id));
 
 create policy "vibekathons_insert_own"
   on public.vibekathons for insert
