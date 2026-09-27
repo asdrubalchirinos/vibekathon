@@ -18,7 +18,7 @@ export default function QueEsPage() {
         inteligencia artificial.
       </p>
 
-      <h2>De esperar a resolver</h2>
+      <h2 className="font-display text-2xl">De esperar a resolver</h2>
       <p>
         Durante años, la mayoría de las personas aprendió a esperar. Esperar
         una función nueva. Esperar que alguien más construyera la herramienta
@@ -33,7 +33,7 @@ export default function QueEsPage() {
         puerta de entrada.
       </p>
 
-      <h2>Vibe coding, el medio</h2>
+      <h2 className="font-display text-2xl">Vibe coding, el medio</h2>
       <p>
         Vibe coding es la práctica de construir software guiando a un modelo de
         IA: defines, priorizas, pruebas y ajustas. El centro se mueve de la
@@ -47,7 +47,7 @@ export default function QueEsPage() {
         hiciste.
       </p>
 
-      <h2>Por qué importa</h2>
+      <h2 className="font-display text-2xl">Por qué importa</h2>
       <p>
         Importa porque cambia quién puede participar. Una comunidad puede
         convocar soluciones a un dolor local. Una empresa puede abrir un

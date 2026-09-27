@@ -32,6 +32,23 @@ h3,
   font-family: var(--font-display), Georgia, serif;
 }
 
+h1 {
+  font-size: 2.25rem;
+  line-height: 1.15;
+  font-weight: 560;
+}
+
+h2 {
+  font-size: 1.45rem;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
 a {
   color: inherit;
 }
