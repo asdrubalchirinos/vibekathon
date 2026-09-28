@@ -1,17 +1,21 @@
-import { addComment } from "@/lib/actions";
+import { addComment, deleteComment } from "@/lib/actions";
+import { LIMITS } from "@/lib/constants";
 import { displayName, formatDate } from "@/lib/helpers";
 import type { CommentWithAuthor } from "@/lib/types";
+import { ConfirmSubmitButton } from "./ConfirmSubmitButton";
 
 export function CommentThread({
   eventId,
   submissionId,
   comments,
   emptyText,
+  currentUserId,
 }: {
   eventId: string;
   submissionId: string;
   comments: CommentWithAuthor[];
   emptyText: string;
+  currentUserId?: string | null;
 }) {
   return (
     <div className="space-y-3">
@@ -29,6 +33,18 @@ export function CommentThread({
                 {formatDate(comment.created_at)}
               </p>
               <p className="mt-1 whitespace-pre-wrap text-sm">{comment.body}</p>
+              {currentUserId && comment.author_id === currentUserId ? (
+                <form action={deleteComment} className="mt-2">
+                  <input type="hidden" name="vibekathon_id" value={eventId} />
+                  <input type="hidden" name="comment_id" value={comment.id} />
+                  <ConfirmSubmitButton
+                    className="bg-transparent p-0 text-xs text-[var(--muted)] underline"
+                    message="¿Borrar este comentario?"
+                  >
+                    Borrar
+                  </ConfirmSubmitButton>
+                </form>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -43,6 +59,7 @@ export function CommentThread({
             className="textarea min-h-20"
             name="body"
             required
+            maxLength={LIMITS.comment}
             placeholder="Escribe un comentario…"
           />
         </label>

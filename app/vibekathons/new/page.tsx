@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { EventForm } from "@/components/EventForm";
 import { getCurrentUser } from "@/lib/auth";
+import { MAX_EVENTS_PER_DAY } from "@/lib/constants";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export const metadata: Metadata = {
@@ -34,7 +35,7 @@ export default async function NewVibekathonPage({
       <h1 className="font-display text-3xl">Crear un vibekathon</h1>
       <p className="text-[var(--muted)]">
         Publica el problema, las fechas y si el llamado es abierto o solo por
-        invitación.
+        invitación. Hay un límite de {MAX_EVENTS_PER_DAY} vibekathons creados cada 24 horas.
       </p>
       <EventForm error={error} />
     </div>

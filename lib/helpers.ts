@@ -50,13 +50,16 @@ export function isValidHttpUrl(value: string): boolean {
 export function isLikelyGithubRepoUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    // En la base de datos solo se acepta https://github.com/usuario/repo
+    if (url.protocol !== "https:") return false;
     if (url.hostname !== "github.com" && url.hostname !== "www.github.com") {
       return false;
     }
-    // github.com/usuario/repo
+    if (url.search || url.hash) return false;
     const parts = url.pathname.split("/").filter(Boolean);
-    return parts.length >= 2;
+    if (parts.length !== 2) return false;
+    const segment = /^[A-Za-z0-9._-]+$/;
+    return segment.test(parts[0]) && segment.test(parts[1]);
   } catch {
     return false;
   }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { EventForm } from "@/components/EventForm";
+import { DeleteEventForm, EventForm } from "@/components/EventForm";
 import { getCurrentUser } from "@/lib/auth";
 import { getVibekathon } from "@/lib/data";
 
@@ -28,6 +28,7 @@ export default async function EditVibekathonPage({
     <div className="mx-auto max-w-2xl space-y-4">
       <h1 className="font-display text-3xl">Editar vibekathon</h1>
       <EventForm event={event} error={error} />
+      <DeleteEventForm eventId={id} />
     </div>
   );
 }

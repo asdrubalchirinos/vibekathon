@@ -13,8 +13,10 @@ Interfaz en español. Hecho con Next.js (App Router) y Supabase (Postgres + Auth
 - Participar con un repo de GitHub, demo opcional y una nota. Un envío por persona, editable hasta la fecha de fin.
 - Panel del organizador: comentarios, puntaje 1–10 y un ganador (se muestra en la página del evento).
 - Página [¿Qué es un vibekathon?](/que-es) ligada al movimiento [Personal Software](https://achirinos.com/es/personal-software/).
+- Borrar lo propio: el participante su envío y sus comentarios; el organizador su evento.
+- Páginas de [privacidad](/privacidad) y [términos](/terminos) (borrador para el MVP).
 
-Fuera de alcance por ahora: premios, pagos, correo, equipos, votación de la comunidad.
+Fuera de alcance por ahora: premios, pagos, equipos, votación de la comunidad, CAPTCHA, deploy. El correo de contacto aún es un marcador en `lib/constants.ts`.
 
 ## Cómo está organizado el código
 
@@ -24,6 +26,8 @@ Pocas carpetas, a propósito. Si es tu primer Next.js, empieza por aquí:
 app/                  Páginas. Cada carpeta es una URL.
   page.tsx            Portada / explorar  →  /
   que-es/page.tsx     Explicación         →  /que-es
+  privacidad/         Aviso de privacidad →  /privacidad
+  terminos/           Términos (borrador) →  /terminos
   login/page.tsx      Inicio de sesión    →  /login
   auth/callback/      GitHub regresa aquí con un "code"
   vibekathons/        Crear, ver, editar y enviar
@@ -34,8 +38,10 @@ lib/
   data.ts             Lecturas a Supabase
   auth.ts             Quién está conectado
   helpers.ts          Fechas, estado, validar URLs
+  constants.ts        Límites de texto y correo de contacto
   types.ts            Formas de los datos
   supabase/           Clientes de Supabase (navegador, servidor, proxy)
+scripts/test-rls.mjs  Pruebas de reglas de acceso (RLS)
 supabase/migrations/  SQL: tablas + políticas RLS
 proxy.ts              Next.js 16: refresca la sesión en cada request
 ```
@@ -92,6 +98,12 @@ cópialo entero, pégalo y pulsa **Run**.
 
 Eso crea `profiles`, `vibekathons`, `event_access`, `submissions`, `comments`, las funciones auxiliares y las **políticas RLS**. Los eventos privados no se pueden leer si no eres organizador o no redimiste el link de invitación.
 
+Si **ya corriste la migración inicial** (es tu caso si el sitio ya funciona), **no la vuelvas a pegar**. Aplica solo la segunda:
+
+`supabase/migrations/20260928140000_seguridad_beta.sql`
+
+misma idea: New query → pegar todo → Run. Esta segunda migración recorta textos demasiado largos, anula `demo_url` inválidas, y deja `NOT VALID` la regla de `repo_url` por si hay envíos viejos con un formato raro. Las filas nuevas sí tienen que cumplir el formato de GitHub.
+
 Si prefieres la CLI de Supabase:
 
 ```bash
@@ -133,13 +145,46 @@ Abre [http://localhost:3000](http://localhost:3000).
    - Redirect URLs: agrega `https://tu-proyecto.vercel.app/auth/callback`
    - Si quieres, pon `NEXT_PUBLIC_SITE_URL` con esa misma URL
 
-## Cómo probar el flujo completo
+## Cómo probar el flujo completo (manual, dos cuentas de GitHub)
 
-1. Entra con GitHub.
-2. Crea un vibekathon **público** y otro **privado**.
-3. En otra ventana (o otro usuario de GitHub), confirma que el privado no aparece en la portada.
-4. Copia el link de invitación desde la página del evento privado, ábrelo con la otra cuenta y participa.
-5. Como organizador: comenta, pon puntaje y elige ganador.
+Usa tu cuenta y otra en una **ventana de incógnito** (o otro navegador).
+
+1. Entra con GitHub (cuenta A) y crea un vibekathon **público** en curso (inicio en el pasado, fin en el futuro).
+2. En incógnito, entra con la cuenta B. Deberías ver el público en la portada y poder abrir el formulario de envío.
+3. Con A, crea un vibekathon **privado** también en curso. En la portada (B) no debe aparecer. Si B pega la URL del evento, debe verse como si no existiera (404).
+4. Con A, copia el link de invitación y ábrelo con B. B entra al evento. Envía un repo `https://github.com/usuario/repo`.
+5. Con A, pulsa **Regenerar link**. B debería seguir viendo el evento (porque ya envió). Crea otro privado, invita a B **sin** que envíe nada, regenera: B pierde el acceso y el link viejo deja de servir.
+6. Antes de la fecha de inicio, B no ve el formulario de envío (mensaje de que aún no empieza). Después del cierre, tampoco puede editar.
+7. Con A, antes del cierre: el panel deja comentar pero **no** muestra puntaje ni ganador. Cuando el evento ya terminó, A puntúa y elige ganador. B no puede puntuar.
+8. B borra su comentario (confirmación) y, si quiere, su envío. A puede borrar el evento desde Editar.
+9. Mira `/privacidad` y `/terminos` en el pie de página.
+
+## Pruebas automáticas de RLS
+
+El script `scripts/test-rls.mjs` crea dos (en realidad tres) usuarios temporales y comprueba las reglas en la base. Lo más simple es apuntarlo a un **proyecto de prueba** en supabase.com, no al de producción.
+
+1. Aplica las dos migraciones en ese proyecto (SQL Editor).
+2. En `.env.local` pon la URL, la anon/publishable key y, **solo para este script**:
+
+```
+SUPABASE_SERVICE_ROLE_KEY=...   # Settings → API → service_role
+```
+
+3. Corre:
+
+```bash
+npm run test:rls
+```
+
+Si usas Supabase en tu máquina (hace falta Docker):
+
+```bash
+npx supabase start
+# copia la URL, anon key y service_role que imprime el comando
+npm run test:rls
+```
+
+Deberías ver una línea `OK` por cada caso y al final `Resultado: N ok, 0 fallos.` El script borra los usuarios de prueba al terminar.
 
 ## Scripts
 
@@ -147,10 +192,13 @@ Abre [http://localhost:3000](http://localhost:3000).
 - `npm run lint` — ESLint
 - `npm run build` — build de producción
 - `npm start` — servir el build (mismo puerto 3000)
+- `npm run test:rls` — pruebas de RLS (hace falta la service_role key)
 
 ## Notas para quien organiza el código
 
 - No hay ORM, ni capa de repositorios, ni librería de estado. Las páginas leen con `lib/data.ts` y los formularios escriben con `lib/actions.ts`.
-- El estado próximo / en curso / finalizado se calcula por fechas en `lib/helpers.ts`, no se guarda en la base.
+- El estado próximo / en curso / finalizado se calcula por fechas en `lib/helpers.ts`, no se guarda en la base. La base también lo exige: envíos solo entre `starts_at` y `ends_at`; puntaje y ganador solo después de `ends_at`.
 - Un evento privado sin invitación responde como 404: no revelamos que existe.
-- El token de invitación no viaja en el `SELECT` normal; el organizador lo pide con `get_invite_token`.
+- El token de invitación no viaja en el `SELECT` normal; el organizador lo pide con `get_invite_token`. Regenerar el link llama a `regenerate_invite`, que rota el token y quita el acceso a quien no haya enviado.
+- El correo de contacto está en `lib/constants.ts` (`CONTACT_EMAIL`). Cámbialo ahí; las páginas legales lo leen de ese archivo.
+- Los envíos y comentarios de un participante, y el evento de un organizador, se pueden borrar. Si se borra el envío ganador, `winner_submission_id` queda vacío (`on delete set null`).

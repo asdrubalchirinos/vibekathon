@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
 import { Header } from "@/components/Header";
 import { SetupBanner } from "@/components/SetupBanner";
@@ -34,7 +35,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Header />
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
         <footer className="border-t border-[var(--line)] px-4 py-6 text-center text-sm text-[var(--muted)]">
-          vibekathon · construir con intención, no esperar permiso
+          vibekathon ·{" "}
+          <Link href="/privacidad" className="underline hover:text-[var(--teal)]">
+            Privacidad
+          </Link>
+          {" · "}
+          <Link href="/terminos" className="underline hover:text-[var(--teal)]">
+            Términos
+          </Link>
         </footer>
       </body>
     </html>

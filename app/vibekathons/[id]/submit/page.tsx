@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { SubmissionForm } from "@/components/SubmissionForm";
 import { getCurrentUser } from "@/lib/auth";
 import { getMySubmission, getVibekathon } from "@/lib/data";
-import { eventStatus } from "@/lib/helpers";
+import { eventStatus, formatDate } from "@/lib/helpers";
 
 export const metadata: Metadata = {
   title: "Enviar proyecto",
@@ -27,12 +27,25 @@ export default async function SubmitPage({
   const status = eventStatus(event.starts_at, event.ends_at);
   const mine = await getMySubmission(id, me.id);
 
+  if (status === "upcoming") {
+    return (
+      <div className="space-y-3">
+        <h1 className="font-display text-3xl">Todavía no se aceptan envíos</h1>
+        <p className="text-[var(--muted)]">
+          Este vibekathon empieza el {formatDate(event.starts_at)}. El formulario
+          de envío se abre en ese momento y cierra el {formatDate(event.ends_at)}.
+        </p>
+      </div>
+    );
+  }
+
   if (status === "finished" && !mine) {
     return (
       <div className="space-y-3">
         <h1 className="font-display text-3xl">Este vibekathon ya terminó</h1>
         <p className="text-[var(--muted)]">
-          Ya no se aceptan envíos nuevos.
+          El plazo cerró el {formatDate(event.ends_at)}. Ya no se aceptan envíos
+          nuevos.
         </p>
       </div>
     );
@@ -44,7 +57,7 @@ export default async function SubmitPage({
         <h1 className="font-display text-3xl">El plazo se cerró</h1>
         <p className="text-[var(--muted)]">
           Puedes ver tu envío en la página del evento, pero ya no se puede
-          editar.
+          editar. Cerró el {formatDate(event.ends_at)}.
         </p>
       </div>
     );
@@ -56,7 +69,8 @@ export default async function SubmitPage({
         {mine ? "Editar tu envío" : "Participar"}
       </h1>
       <p className="text-[var(--muted)]">
-        Un envío por persona. Puedes corregirlo hasta la fecha de fin.
+        Un envío por persona. Puedes corregirlo hasta el{" "}
+        {formatDate(event.ends_at)}.
       </p>
       <SubmissionForm eventId={id} submission={mine} error={error} />
     </div>
