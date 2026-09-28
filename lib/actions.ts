@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
 import { getCurrentUser } from "./auth";
-import { isLikelyGithubRepoUrl, isValidHttpUrl, newInviteToken } from "./helpers";
+import { LIMITS, MAX_EVENTS_PER_DAY } from "./constants";
+import {
+  eventStatus,
+  formatDate,
+  isLikelyGithubRepoUrl,
+  isValidHttpUrl,
+  newInviteToken,
+} from "./helpers";
 
 function readString(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -12,6 +19,39 @@ function readString(formData: FormData, key: string) {
 
 function fail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+// Traduce errores de Postgres / RLS a un texto corto en español.
+function friendlyError(message: string | undefined, fallback: string): string {
+  if (!message) return fallback;
+  if (message.includes("límite de 5")) {
+    return `Has alcanzado el límite de ${MAX_EVENTS_PER_DAY} vibekathons en 24 horas. Espera un rato o borra uno anterior.`;
+  }
+  if (message.includes("vibekathons_title_len")) {
+    return `El título no puede superar ${LIMITS.title} caracteres.`;
+  }
+  if (message.includes("vibekathons_description_len")) {
+    return `La descripción del evento no puede superar ${LIMITS.eventDescription} caracteres.`;
+  }
+  if (message.includes("submissions_description_len")) {
+    return `La descripción del envío no puede superar ${LIMITS.submissionDescription} caracteres.`;
+  }
+  if (message.includes("submissions_repo_url_github") || message.includes("submissions_repo_url_len")) {
+    return "El repo debe ser una URL de GitHub del tipo https://github.com/usuario/repo.";
+  }
+  if (message.includes("submissions_demo_url")) {
+    return "La URL del demo tiene que empezar por http:// o https://.";
+  }
+  if (message.includes("comments_body_len")) {
+    return `El comentario debe tener entre 1 y ${LIMITS.comment} caracteres.`;
+  }
+  if (/row-level security/i.test(message)) {
+    return "No tienes permiso para hacer eso ahora. Puede que el evento aún no empiece o ya haya cerrado.";
+  }
+  if (/permission denied/i.test(message)) {
+    return "No tienes permiso para cambiar ese dato.";
+  }
+  return message;
 }
 
 export async function signOut() {
@@ -31,6 +71,15 @@ export async function createVibekathon(formData: FormData) {
   const visibility = readString(formData, "visibility") === "private" ? "private" : "public";
 
   if (!title) fail("/vibekathons/new", "El título es obligatorio.");
+  if (title.length > LIMITS.title) {
+    fail("/vibekathons/new", `El título no puede superar ${LIMITS.title} caracteres.`);
+  }
+  if (description.length > LIMITS.eventDescription) {
+    fail(
+      "/vibekathons/new",
+      `La descripción no puede superar ${LIMITS.eventDescription} caracteres.`,
+    );
+  }
   if (!startsAt || !endsAt) fail("/vibekathons/new", "Indica las fechas de inicio y fin.");
 
   const start = new Date(startsAt);
@@ -58,7 +107,7 @@ export async function createVibekathon(formData: FormData) {
     .single();
 
   if (error || !data) {
-    fail("/vibekathons/new", error?.message || "No se pudo crear el vibekathon.");
+    fail("/vibekathons/new", friendlyError(error?.message, "No se pudo crear el vibekathon."));
   }
 
   revalidatePath("/");
@@ -78,6 +127,15 @@ export async function updateVibekathon(formData: FormData) {
 
   if (!id) fail("/", "Falta el identificador del evento.");
   if (!title) fail(`/vibekathons/${id}/edit`, "El título es obligatorio.");
+  if (title.length > LIMITS.title) {
+    fail(`/vibekathons/${id}/edit`, `El título no puede superar ${LIMITS.title} caracteres.`);
+  }
+  if (description.length > LIMITS.eventDescription) {
+    fail(
+      `/vibekathons/${id}/edit`,
+      `La descripción no puede superar ${LIMITS.eventDescription} caracteres.`,
+    );
+  }
   if (!startsAt || !endsAt) {
     fail(`/vibekathons/${id}/edit`, "Indica las fechas de inicio y fin.");
   }
@@ -105,12 +163,33 @@ export async function updateVibekathon(formData: FormData) {
     .eq("organizer_id", me.id);
 
   if (error) {
-    fail(`/vibekathons/${id}/edit`, error.message);
+    fail(`/vibekathons/${id}/edit`, friendlyError(error.message, "No se pudo guardar."));
   }
 
   revalidatePath("/");
   revalidatePath(`/vibekathons/${id}`);
   redirect(`/vibekathons/${id}`);
+}
+
+export async function deleteVibekathon(formData: FormData) {
+  const id = readString(formData, "id");
+  const me = await getCurrentUser();
+  if (!me) redirect("/login");
+  if (!id) fail("/", "Falta el identificador del evento.");
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("vibekathons")
+    .delete()
+    .eq("id", id)
+    .eq("organizer_id", me.id);
+
+  if (error) {
+    fail(`/vibekathons/${id}/edit`, friendlyError(error.message, "No se pudo borrar el evento."));
+  }
+
+  revalidatePath("/");
+  redirect("/");
 }
 
 export async function regenerateInviteToken(formData: FormData) {
@@ -119,14 +198,12 @@ export async function regenerateInviteToken(formData: FormData) {
   if (!me) redirect("/login");
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("vibekathons")
-    .update({ invite_token: newInviteToken() })
-    .eq("id", id)
-    .eq("organizer_id", me.id);
+  const { error } = await supabase.rpc("regenerate_invite", {
+    event_id: id,
+  });
 
   if (error) {
-    fail(`/vibekathons/${id}`, error.message);
+    fail(`/vibekathons/${id}`, friendlyError(error.message, "No se pudo regenerar el link."));
   }
 
   revalidatePath(`/vibekathons/${id}`);
@@ -142,17 +219,45 @@ export async function upsertSubmission(formData: FormData) {
   const demoUrl = readString(formData, "demo_url");
   const description = readString(formData, "description");
 
-  if (!isLikelyGithubRepoUrl(repoUrl)) {
+  if (repoUrl.length > LIMITS.repoUrl || !isLikelyGithubRepoUrl(repoUrl)) {
     fail(
       `/vibekathons/${eventId}/submit`,
       "El repo debe ser una URL pública de GitHub, por ejemplo https://github.com/usuario/proyecto.",
     );
   }
-  if (demoUrl && !isValidHttpUrl(demoUrl)) {
+  if (demoUrl && (demoUrl.length > LIMITS.demoUrl || !isValidHttpUrl(demoUrl))) {
     fail(`/vibekathons/${eventId}/submit`, "La URL del demo no parece válida.");
+  }
+  if (description.length > LIMITS.submissionDescription) {
+    fail(
+      `/vibekathons/${eventId}/submit`,
+      `La descripción no puede superar ${LIMITS.submissionDescription} caracteres.`,
+    );
   }
 
   const supabase = await createClient();
+
+  const { data: event } = await supabase
+    .from("vibekathons")
+    .select("starts_at, ends_at")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (!event) fail(`/vibekathons/${eventId}/submit`, "No se encontró el evento.");
+
+  const status = eventStatus(event.starts_at, event.ends_at);
+  if (status === "upcoming") {
+    fail(
+      `/vibekathons/${eventId}/submit`,
+      `Los envíos se abren el ${formatDate(event.starts_at)}.`,
+    );
+  }
+  if (status === "finished") {
+    fail(
+      `/vibekathons/${eventId}/submit`,
+      `El plazo de envíos cerró el ${formatDate(event.ends_at)}. Ya no se puede enviar ni editar.`,
+    );
+  }
 
   const { data: existing } = await supabase
     .from("submissions")
@@ -172,7 +277,7 @@ export async function upsertSubmission(formData: FormData) {
       .eq("id", existing.id)
       .eq("participant_id", me.id);
 
-    if (error) fail(`/vibekathons/${eventId}/submit`, error.message);
+    if (error) fail(`/vibekathons/${eventId}/submit`, friendlyError(error.message, "No se pudo actualizar."));
   } else {
     const { error } = await supabase.from("submissions").insert({
       vibekathon_id: eventId,
@@ -182,7 +287,28 @@ export async function upsertSubmission(formData: FormData) {
       description,
     });
 
-    if (error) fail(`/vibekathons/${eventId}/submit`, error.message);
+    if (error) fail(`/vibekathons/${eventId}/submit`, friendlyError(error.message, "No se pudo enviar."));
+  }
+
+  revalidatePath(`/vibekathons/${eventId}`);
+  redirect(`/vibekathons/${eventId}`);
+}
+
+export async function deleteSubmission(formData: FormData) {
+  const eventId = readString(formData, "vibekathon_id");
+  const submissionId = readString(formData, "submission_id");
+  const me = await getCurrentUser();
+  if (!me) redirect("/login");
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("submissions")
+    .delete()
+    .eq("id", submissionId)
+    .eq("participant_id", me.id);
+
+  if (error) {
+    fail(`/vibekathons/${eventId}`, friendlyError(error.message, "No se pudo borrar el envío."));
   }
 
   revalidatePath(`/vibekathons/${eventId}`);
@@ -202,12 +328,26 @@ export async function setSubmissionScoreAction(formData: FormData) {
   }
 
   const supabase = await createClient();
+
+  const { data: event } = await supabase
+    .from("vibekathons")
+    .select("ends_at")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (event && new Date() <= new Date(event.ends_at)) {
+    fail(
+      `/vibekathons/${eventId}`,
+      `Podrás poner puntaje cuando termine el evento (${formatDate(event.ends_at)}).`,
+    );
+  }
+
   const { error } = await supabase.rpc("set_submission_score", {
     sub_id: submissionId,
     new_score: score,
   });
 
-  if (error) fail(`/vibekathons/${eventId}`, error.message);
+  if (error) fail(`/vibekathons/${eventId}`, friendlyError(error.message, "No se pudo guardar el puntaje."));
 
   revalidatePath(`/vibekathons/${eventId}`);
   redirect(`/vibekathons/${eventId}`);
@@ -220,12 +360,26 @@ export async function setWinnerAction(formData: FormData) {
   if (!me) redirect("/login");
 
   const supabase = await createClient();
+
+  const { data: event } = await supabase
+    .from("vibekathons")
+    .select("ends_at")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (event && new Date() <= new Date(event.ends_at)) {
+    fail(
+      `/vibekathons/${eventId}`,
+      `Podrás elegir ganador cuando termine el evento (${formatDate(event.ends_at)}).`,
+    );
+  }
+
   const { error } = await supabase.rpc("set_winner", {
     event_id: eventId,
     sub_id: submissionId || null,
   });
 
-  if (error) fail(`/vibekathons/${eventId}`, error.message);
+  if (error) fail(`/vibekathons/${eventId}`, friendlyError(error.message, "No se pudo actualizar el ganador."));
 
   revalidatePath(`/vibekathons/${eventId}`);
   redirect(`/vibekathons/${eventId}`);
@@ -239,6 +393,9 @@ export async function addComment(formData: FormData) {
   if (!me) redirect("/login");
 
   if (!body) fail(`/vibekathons/${eventId}`, "El comentario no puede estar vacío.");
+  if (body.length > LIMITS.comment) {
+    fail(`/vibekathons/${eventId}`, `El comentario no puede superar ${LIMITS.comment} caracteres.`);
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.from("comments").insert({
@@ -247,7 +404,28 @@ export async function addComment(formData: FormData) {
     body,
   });
 
-  if (error) fail(`/vibekathons/${eventId}`, error.message);
+  if (error) fail(`/vibekathons/${eventId}`, friendlyError(error.message, "No se pudo comentar."));
+
+  revalidatePath(`/vibekathons/${eventId}`);
+  redirect(`/vibekathons/${eventId}`);
+}
+
+export async function deleteComment(formData: FormData) {
+  const eventId = readString(formData, "vibekathon_id");
+  const commentId = readString(formData, "comment_id");
+  const me = await getCurrentUser();
+  if (!me) redirect("/login");
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("comments")
+    .delete()
+    .eq("id", commentId)
+    .eq("author_id", me.id);
+
+  if (error) {
+    fail(`/vibekathons/${eventId}`, friendlyError(error.message, "No se pudo borrar el comentario."));
+  }
 
   revalidatePath(`/vibekathons/${eventId}`);
   redirect(`/vibekathons/${eventId}`);

@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CommentThread } from "@/components/CommentThread";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { ErrorBanner } from "@/components/ErrorBanner";
 import { InviteBox } from "@/components/InviteBox";
 import { Markdown } from "@/components/Markdown";
 import { OrganizerPanel } from "@/components/OrganizerPanel";
 import { StatusBadge, VisibilityBadge } from "@/components/StatusBadge";
+import { deleteSubmission } from "@/lib/actions";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getInviteToken,
@@ -82,12 +84,12 @@ export default async function VibekathonPage({
               Editar
             </Link>
           ) : null}
-          {me && status !== "finished" ? (
+          {me && status === "active" ? (
             <Link href={`/vibekathons/${id}/submit`} className="btn btn-primary">
               {mine ? "Editar mi envío" : "Participar"}
             </Link>
           ) : null}
-          {!me ? (
+          {!me && status === "active" ? (
             <Link
               href={`/login?next=/vibekathons/${id}/submit`}
               className="btn btn-primary"
@@ -95,8 +97,29 @@ export default async function VibekathonPage({
               Entra para participar
             </Link>
           ) : null}
+          {!me && status === "upcoming" ? (
+            <Link href={`/login?next=/vibekathons/${id}`} className="btn btn-ghost">
+              Entra con GitHub
+            </Link>
+          ) : null}
         </div>
       </header>
+
+      {status === "upcoming" ? (
+        <p className="card text-sm text-[var(--muted)]">
+          Este vibekathon todavía no empieza. Los envíos se aceptan desde el{" "}
+          {formatDate(event.starts_at)} hasta el {formatDate(event.ends_at)}.
+        </p>
+      ) : null}
+      {status === "finished" ? (
+        <p className="card text-sm text-[var(--muted)]">
+          El plazo de envíos cerró el {formatDate(event.ends_at)}. Ya no se
+          pueden enviar ni editar proyectos.
+          {organizerView
+            ? " A partir de ahora puedes puntuar y elegir ganador."
+            : ""}
+        </p>
+      ) : null}
 
       {winner ? (
         <section className="card border-[var(--rust)] bg-[#fff7ed]">
@@ -163,6 +186,16 @@ export default async function VibekathonPage({
               </a>
             ) : null}
           </p>
+          <form action={deleteSubmission}>
+            <input type="hidden" name="vibekathon_id" value={id} />
+            <input type="hidden" name="submission_id" value={mine.id} />
+            <ConfirmSubmitButton
+              className="btn btn-ghost"
+              message="¿Borrar tu envío? Esta acción no se puede deshacer. Si era el ganador, el evento quedará sin ganador."
+            >
+              Borrar mi envío
+            </ConfirmSubmitButton>
+          </form>
           <div className="border-t border-[var(--line)] pt-3">
             <h3 className="mb-2 text-sm font-semibold">Comentarios de revisión</h3>
             <CommentThread
@@ -170,6 +203,7 @@ export default async function VibekathonPage({
               submissionId={mine.id}
               comments={commentsBySubmission[mine.id] ?? []}
               emptyText="Cuando el organizador comente, lo verás aquí. También puedes responder."
+              currentUserId={me?.id}
             />
           </div>
         </section>
@@ -222,12 +256,15 @@ export default async function VibekathonPage({
         )}
       </section>
 
-      {organizerView ? (
+      {organizerView && me ? (
         <OrganizerPanel
           eventId={id}
           winnerId={event.winner_submission_id}
           submissions={submissions}
           commentsBySubmission={commentsBySubmission}
+          status={status}
+          endsAt={event.ends_at}
+          currentUserId={me.id}
         />
       ) : null}
     </div>

@@ -1,6 +1,8 @@
-import { createVibekathon, updateVibekathon } from "@/lib/actions";
+import { createVibekathon, deleteVibekathon, updateVibekathon } from "@/lib/actions";
+import { LIMITS } from "@/lib/constants";
 import { toDatetimeLocal } from "@/lib/helpers";
 import type { Vibekathon } from "@/lib/types";
+import { ConfirmSubmitButton } from "./ConfirmSubmitButton";
 import { ErrorBanner } from "./ErrorBanner";
 
 export function EventForm({
@@ -23,9 +25,11 @@ export function EventForm({
           className="input"
           name="title"
           required
+          maxLength={LIMITS.title}
           defaultValue={event?.title}
           placeholder="Ej. Vibekathon de herramientas para vecinos"
         />
+        <span className="text-xs text-[var(--muted)]">Máximo {LIMITS.title} caracteres.</span>
       </label>
 
       <label className="block space-y-1">
@@ -33,9 +37,13 @@ export function EventForm({
         <textarea
           className="textarea"
           name="description"
+          maxLength={LIMITS.eventDescription}
           defaultValue={event?.description}
           placeholder="Puedes usar texto plano o markdown. Cuenta el problema, el contexto y qué esperas ver."
         />
+        <span className="text-xs text-[var(--muted)]">
+          Máximo {LIMITS.eventDescription} caracteres.
+        </span>
       </label>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -94,6 +102,25 @@ export function EventForm({
           {event ? "Guardar cambios" : "Publicar vibekathon"}
         </button>
       </div>
+    </form>
+  );
+}
+
+export function DeleteEventForm({ eventId }: { eventId: string }) {
+  return (
+    <form action={deleteVibekathon} className="card space-y-2">
+      <input type="hidden" name="id" value={eventId} />
+      <h2 className="font-display text-xl">Borrar este vibekathon</h2>
+      <p className="text-sm text-[var(--muted)]">
+        Se borrarán el evento, los envíos y los comentarios. No se puede
+        deshacer.
+      </p>
+      <ConfirmSubmitButton
+        className="btn btn-rust"
+        message="¿Borrar este vibekathon? Se eliminarán también los envíos y los comentarios."
+      >
+        Borrar evento
+      </ConfirmSubmitButton>
     </form>
   );
 }
